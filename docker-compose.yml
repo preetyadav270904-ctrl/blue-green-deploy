@@ -1,0 +1,24 @@
+services:
+  app_blue:
+    image: ${APP_BLUE_IMAGE:-blue-green-app:v1.0.0}
+    container_name: app_blue
+    environment:
+      - APP_VERSION=${BLUE_VERSION:-v1.0.0}
+      - APP_COLOR=blue
+      - FAIL_HEALTH=${FAIL_HEALTH:-false}
+    ports:
+      # Bound strictly to 127.0.0.1 to avoid public exposure
+      - "127.0.0.1:8081:8080"
+    restart: unless-stopped
+
+  app_green:
+    image: ${APP_GREEN_IMAGE:-blue-green-app:v1.0.0}
+    container_name: app_green
+    environment:
+      - APP_VERSION=${GREEN_VERSION:-v1.0.0}
+      - APP_COLOR=green
+      - FAIL_HEALTH=${FAIL_HEALTH:-false}
+    ports:
+      # Bound strictly to 127.0.0.1 to avoid public exposure
+      - "127.0.0.1:8082:8080"
+    restart: unless-stopped
