@@ -25,11 +25,17 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+          # Disable strict host checking for ephemeral CI runners
+          cat << 'EOF' > ~/.ssh/config
+          Host *
+            StrictHostKeyChecking no
+            UserKnownHostsFile=/dev/null
+            LogLevel ERROR
+          EOF
+          chmod 600 ~/.ssh/config
 
       - name: Sync Code to EC2 Server
         run: |
-          # rsync project files directly into the ec2-user directory
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/deploy_key" \
             --exclude '.git' \
