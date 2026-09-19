@@ -1,0 +1,56 @@
+name: Deploy to EC2 (Blue/Green)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      chaos_mode:
+        description: 'Set to "broken" to test auto-rollback failure recovery'
+        required: false
+        default: 'healthy'
+
+jobs:
+  deploy:
+    name: Execute Zero-Downtime Deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Prepare SSH Environment
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Sync Code to EC2 Server
+        run: |
+          # rsync project files directly into the ec2-user directory
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            --exclude '.git' \
+            --exclude '.github' \
+            ./ ec2-user@${{ secrets.EC2_HOST }}:~/blue-green-deploy/
+
+      - name: Trigger Orchestrated Cutover
+        run: |
+          CHAOS="${{ github.event.inputs.chaos_mode || 'healthy' }}"
+          VERSION_TAG="sha-${{ github.sha }}"
+
+          echo "Deploying version: $VERSION_TAG in mode: $CHAOS"
+
+          ssh -i ~/.ssh/deploy_key ec2-user@${{ secrets.EC2_HOST }} "bash -se" << EOF
+            cd ~/blue-green-deploy
+            chmod +x deploy.sh
+            ./deploy.sh "$VERSION_TAG" "$CHAOS"
+          EOF
+
+      - name: Verify Public Endpoint Status
+        if: success()
+        run: |
+          echo "Verifying deployment status from public internet..."
+          curl -f -s "http://${{ secrets.EC2_HOST }}/"
