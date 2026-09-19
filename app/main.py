@@ -16,7 +16,7 @@ def read_root(response: Response):
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return {
             "status": "error",
-            "message": f"Simulated runtime crash on {APP_COLOR.upper()} slot!"
+            "message": f"Hello from the {APP_COLOR.upper()} deployment slot! (Deployed via CI/CD)"
         }
 
     return {
